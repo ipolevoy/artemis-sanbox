@@ -14,11 +14,13 @@ import java.util.Date;
 import java.util.Enumeration;
 import java.util.Hashtable;
 
+import static examples.EmbeddedConfig.createServerConfiguration;
+
 public class JMSExample {
 
     public static void main(String[] args) throws Exception {
-        EmbeddedActiveMQ server = EmbeddedConfig.configureServer();
-
+        EmbeddedActiveMQ server  = new EmbeddedActiveMQ();
+        server.setConfiguration(createServerConfiguration());
         server.start();
 
         TransportConfiguration transportConfiguration = new TransportConfiguration(InVMConnectorFactory.class.getName());

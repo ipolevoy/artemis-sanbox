@@ -4,12 +4,15 @@ import org.apache.activemq.artemis.api.core.TransportConfiguration;
 import org.apache.activemq.artemis.api.core.management.QueueControl;
 import org.apache.activemq.artemis.api.jms.ActiveMQJMSClient;
 import org.apache.activemq.artemis.api.jms.JMSFactoryType;
+import org.apache.activemq.artemis.core.config.Configuration;
+import org.apache.activemq.artemis.core.config.CoreQueueConfiguration;
 import org.apache.activemq.artemis.core.remoting.impl.invm.InVMConnectorFactory;
 import org.apache.activemq.artemis.core.server.embedded.EmbeddedActiveMQ;
 
 import javax.jms.Queue;
 import javax.jms.*;
 import javax.naming.InitialContext;
+
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.WindowAdapter;
@@ -64,7 +67,16 @@ public class JMSExampleGUI extends JFrame{
         });
 
         //Artemis code:
-        server = EmbeddedConfig.configureServer();
+        Configuration configuration = EmbeddedConfig.createServerConfiguration();
+
+        //the following three lines have no effect
+        CoreQueueConfiguration coreQueueConfiguration = new CoreQueueConfiguration();
+        coreQueueConfiguration.setName("Queue123").setDurable(true);
+        configuration.addQueueConfiguration(coreQueueConfiguration);
+
+
+        server = new EmbeddedActiveMQ();
+        server.setConfiguration(configuration);
         server.start();
 
         TransportConfiguration transportConfiguration = new TransportConfiguration(InVMConnectorFactory.class.getName());
@@ -73,10 +85,11 @@ public class JMSExampleGUI extends JFrame{
         Hashtable<String, String> jndi = new Hashtable<>();
         jndi.put("java.naming.factory.initial", "org.apache.activemq.artemis.jndi.ActiveMQInitialContextFactory");
         jndi.put("connectionFactory.ConnectionFactory", "vm://0");
-        jndi.put("queue.queue/exampleQueue", "exampleQueue");
+        //# queue.[jndiName] = [physicalName]
+//        jndi.put("queue.queue/Queue123", "Queue123");
 
         InitialContext initialContext = new InitialContext(jndi);
-        jmsQueue = (Queue) initialContext.lookup("queue/exampleQueue");
+        jmsQueue = (Queue) initialContext.lookup("queue/Queue123");
     }
 
     private void addActionListeners(JButton sendB, JButton receiveB, JTextField messageField, JButton countB, JButton registerListenerB, JButton browseB) {
@@ -136,6 +149,7 @@ public class JMSExampleGUI extends JFrame{
                     QueueBrowser queueBrowser = jmsSession.createBrowser(jmsQueue);
                     Enumeration enumeration = queueBrowser.getEnumeration();
                     int count = 0;
+
                     while (enumeration.hasMoreElements()) {
                         TextMessage tm = (TextMessage) enumeration.nextElement();
                         System.out.println("Browser found a message: " + tm.getText());
@@ -151,8 +165,8 @@ public class JMSExampleGUI extends JFrame{
                 ex.printStackTrace();
             }
         });
-
     }
+
 
     public static void main(String[] args) throws Exception {
         JMSExampleGUI frame= new JMSExampleGUI("Artemis Sandbox");
