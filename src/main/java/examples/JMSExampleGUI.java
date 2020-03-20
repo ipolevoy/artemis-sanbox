@@ -1,30 +1,32 @@
 package examples;
 
-import org.apache.activemq.artemis.api.core.TransportConfiguration;
 import org.apache.activemq.artemis.api.core.management.QueueControl;
-import org.apache.activemq.artemis.api.jms.ActiveMQJMSClient;
-import org.apache.activemq.artemis.api.jms.JMSFactoryType;
 import org.apache.activemq.artemis.core.config.Configuration;
 import org.apache.activemq.artemis.core.config.CoreQueueConfiguration;
-import org.apache.activemq.artemis.core.remoting.impl.invm.InVMConnectorFactory;
 import org.apache.activemq.artemis.core.server.embedded.EmbeddedActiveMQ;
+import org.apache.activemq.artemis.jms.client.ActiveMQConnectionFactory;
+import org.javalite.common.Util;
 
 import javax.jms.Queue;
 import javax.jms.*;
-import javax.naming.InitialContext;
-
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
+import java.util.ArrayList;
 import java.util.Enumeration;
-import java.util.Hashtable;
 
-public class JMSExampleGUI extends JFrame{
+public class JMSExampleGUI extends JFrame {
 
+
+    static String QUEUE_NAME = "QUEUE_123";
     private EmbeddedActiveMQ server;
     private ConnectionFactory connectionFactory;
     private Queue jmsQueue;
+
+    private java.util.List<Session> listenerSessions = new ArrayList();
+    private java.util.List<MessageConsumer> messageConsumers = new ArrayList<>();
+    private Connection consumerConnection;
 
     private JMSExampleGUI(String title) throws Exception {
         super(title);
@@ -37,15 +39,14 @@ public class JMSExampleGUI extends JFrame{
 
         JTextField messageField = new JTextField("enter your message");
         messageField.setColumns(20);
-        JButton countB =  new JButton("Get count from QueueControl (read on console)");
-
+        JButton queueControlCountBcountB = new JButton("Get count from QueueControl (read on console)");
 
 
         panel.add(new JLabel("Send a message: "));
         panel.add(messageField);
         panel.add(sendB);
         panel.add(receiveB);
-        panel.add(countB);
+        panel.add(queueControlCountBcountB);
         panel.add(registerListenerB);
         panel.add(browseB);
         add(panel);
@@ -55,14 +56,18 @@ public class JMSExampleGUI extends JFrame{
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 
 
-        addActionListeners(sendB, receiveB, messageField, countB, registerListenerB, browseB);
+        addActionListeners(sendB, receiveB, messageField, queueControlCountBcountB, registerListenerB, browseB);
 
         addWindowListener(new WindowAdapter() {
             @Override
             public void windowClosing(WindowEvent e) {
                 try {
+                    JMSExampleGUI.this.listenerSessions.forEach(Util::closeQuietly);
+                    JMSExampleGUI.this.messageConsumers.forEach(Util::closeQuietly);
+                    Util.closeQuietly(JMSExampleGUI.this.consumerConnection);
                     server.stop();
-                } catch (Exception ignore) {}
+                } catch (Exception ignore) {
+                }
             }
         });
 
@@ -79,30 +84,41 @@ public class JMSExampleGUI extends JFrame{
         server.setConfiguration(configuration);
         server.start();
 
-        TransportConfiguration transportConfiguration = new TransportConfiguration(InVMConnectorFactory.class.getName());
-        connectionFactory = ActiveMQJMSClient.createConnectionFactoryWithoutHA(JMSFactoryType.CF, transportConfiguration);
+//
+//        TransportConfiguration transportConfiguration = new TransportConfiguration(InVMConnectorFactory.class.getName());
+//        connectionFactory = ActiveMQJMSClient.createConnectionFactoryWithoutHA(JMSFactoryType.CF, transportConfiguration);
 
-        Hashtable<String, String> jndi = new Hashtable<>();
-        jndi.put("java.naming.factory.initial", "org.apache.activemq.artemis.jndi.ActiveMQInitialContextFactory");
-        jndi.put("connectionFactory.ConnectionFactory", "vm://0");
-        //# queue.[jndiName] = [physicalName]
-//        jndi.put("queue.queue/Queue123", "Queue123");
+        connectionFactory = new ActiveMQConnectionFactory("vm://0");
 
-        InitialContext initialContext = new InitialContext(jndi);
-        jmsQueue = (Queue) initialContext.lookup("queue/Queue123");
+
+        try (Connection connection = connectionFactory.createConnection()) {
+            Session jmsSession = connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
+            jmsQueue = jmsSession.createQueue(QUEUE_NAME);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+//        Hashtable<String, String> jndi = new Hashtable<>();
+//        jndi.put("java.naming.factory.initial", "org.apache.activemq.artemis.jndi.ActiveMQInitialContextFactory");
+//        jndi.put("connectionFactory.ConnectionFactory", "vm://0");
+//        //# queue.[jndiName] = [physicalName]
+////        jndi.put("queue.queue/Queue123", "Queue123");
+//
+//        InitialContext initialContext = new InitialContext(jndi);
+//        jmsQueue = (Queue) initialContext.lookup(QUEUE_NAME);
     }
 
-    private void addActionListeners(JButton sendB, JButton receiveB, JTextField messageField, JButton countB, JButton registerListenerB, JButton browseB) {
+    private void addActionListeners(JButton sendB, JButton receiveB, JTextField messageField, JButton queueControlCountB, JButton registerListenerB, JButton browseB) {
         sendB.addActionListener(e -> {
             try (Connection connection = connectionFactory.createConnection()) {
-                try(Session jmsSession = connection.createSession(false, Session.AUTO_ACKNOWLEDGE)){
+                try (Session jmsSession = connection.createSession(false, Session.AUTO_ACKNOWLEDGE)) {
                     MessageProducer producer = jmsSession.createProducer(jmsQueue);
                     connection.start();
                     TextMessage message = jmsSession.createTextMessage(messageField.getText());
                     producer.send(message);
                     System.out.println("Message sent: " + message.getText());
                 }
-            } catch (Exception ex){
+            } catch (Exception ex) {
                 ex.printStackTrace();
             }
         });
@@ -111,35 +127,63 @@ public class JMSExampleGUI extends JFrame{
 
             Runnable r = () -> {
                 try (Connection connection = connectionFactory.createConnection()) {
-                    try(Session jmsSession = connection.createSession(false, Session.AUTO_ACKNOWLEDGE)){
+                    try (Session jmsSession = connection.createSession(false, Session.AUTO_ACKNOWLEDGE)) {
                         MessageConsumer consumer = jmsSession.createConsumer(jmsQueue);
                         connection.start();
 
                         System.out.println("Starting to receive on: " + Thread.currentThread());
-                        TextMessage message = (TextMessage)consumer.receive();
+                        TextMessage message = (TextMessage) consumer.receive();
                         System.out.println("Received message by consumer: \"" + message.getText() + "\" on thread: " + Thread.currentThread());
                     }
-                } catch (Exception ex){
+                } catch (Exception ex) {
                     ex.printStackTrace();
                 }
             };
             new Thread(r).start();
         });
 
-        countB.addActionListener(e -> {
+        queueControlCountB.addActionListener(e -> {
 
-            Object[]  resources = server.getActiveMQServer().getManagementService().getResources(QueueControl.class);
-            if(resources.length == 0){
-                System.err.println("QueueControl ERROR: no queue controls found!!!" );
-            }else{
-                QueueControl qc = (QueueControl)resources[0];
-                System.out.println("Messages in queue: " + qc.getMessageCount());
+            Object[] resources = server.getActiveMQServer().getManagementService().getResources(QueueControl.class);
+            if (resources.length == 0) {
+                System.err.println("QueueControl ERROR: no queue controls found!!!");
+            } else {
+                QueueControl qc = (QueueControl) resources[0];
+
+                System.out.println("Found QueueControl: " + qc.getName());
+                System.out.println("QueueControl: Messages in queue: " + qc.getMessageCount());
             }
 
         });
 
+
         registerListenerB.addActionListener(e -> {
-            System.out.println("TBD");
+
+            try  {
+                consumerConnection = connectionFactory.createConnection();
+                Session jmsSession = consumerConnection.createSession(false, Session.AUTO_ACKNOWLEDGE);
+                this.listenerSessions.add(jmsSession);
+
+                MessageConsumer consumer = jmsSession.createConsumer(jmsQueue);
+                messageConsumers.add(consumer);
+                consumer.setMessageListener(message -> {
+
+                    try {
+                        System.out.println("MessageListener: got message:  " + ((TextMessage) message).getText());
+                    } catch (JMSException e1) {
+                        e1.printStackTrace();
+                    }
+                });
+
+                consumerConnection.start();
+
+            } catch (InvalidDestinationException e1) {
+                System.err.println("Browser ERROR: did not find this queue!!!");
+            } catch (Exception ex) {
+                ex.printStackTrace();
+            }
+            System.out.println("Registered the listener ");
+
         });
 
         browseB.addActionListener(e -> {
@@ -158,10 +202,9 @@ public class JMSExampleGUI extends JFrame{
 
                     System.out.println("Browsed total messages: " + count);
                 }
-            }catch (InvalidDestinationException e1){
+            } catch (InvalidDestinationException e1) {
                 System.err.println("Browser ERROR: did not find this queue!!!");
-            }
-            catch (Exception ex){
+            } catch (Exception ex) {
                 ex.printStackTrace();
             }
         });
@@ -169,7 +212,7 @@ public class JMSExampleGUI extends JFrame{
 
 
     public static void main(String[] args) throws Exception {
-        JMSExampleGUI frame= new JMSExampleGUI("Artemis Sandbox");
+        JMSExampleGUI frame = new JMSExampleGUI("Artemis Sandbox");
         frame.setVisible(true);
     }
 }

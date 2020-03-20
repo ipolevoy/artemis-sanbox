@@ -31,20 +31,18 @@ public class JMSExample {
         jndi.put("connectionFactory.ConnectionFactory", "vm://0");
         jndi.put("queue.queue/exampleQueue", "exampleQueue");
 
-        InitialContext initialContext = new InitialContext(jndi);
-        Queue jmsQueue = (Queue) initialContext.lookup("queue/exampleQueue");
-
         try (Connection connection = connectionFactory.createConnection()) {
 
 
             Session jmsSession = connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
+            Queue jmsQueue = jmsSession.createQueue("exampleQueue");
 
             MessageProducer producer = jmsSession.createProducer(jmsQueue);
 
 
             //QUEUE CONTROLS ARE AVAILABLE ONLY AFTER CREATION OF A PRODUCER!
             System.out.println("Queue Controls: " + server.getActiveMQServer().getManagementService().getResources(QueueControl.class).length);
-            MessageConsumer messageConsumer = jmsSession.createConsumer(jmsQueue);
+
 
             connection.start(); // must have for delivery
 
@@ -66,6 +64,7 @@ public class JMSExample {
 
             browseJMSMessages(jmsSession, jmsQueue);
 
+            MessageConsumer messageConsumer = jmsSession.createConsumer(jmsQueue);
 
             //RECEIVING A MESSAGE
             Message messageReceived = messageConsumer.receive();
