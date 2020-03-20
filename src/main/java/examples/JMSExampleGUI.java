@@ -4,6 +4,7 @@ import org.apache.activemq.artemis.api.core.management.QueueControl;
 import org.apache.activemq.artemis.core.config.Configuration;
 import org.apache.activemq.artemis.core.config.CoreQueueConfiguration;
 import org.apache.activemq.artemis.core.server.embedded.EmbeddedActiveMQ;
+import org.apache.activemq.artemis.core.settings.impl.AddressSettings;
 import org.apache.activemq.artemis.jms.client.ActiveMQConnectionFactory;
 import org.javalite.common.Util;
 
@@ -74,15 +75,26 @@ public class JMSExampleGUI extends JFrame {
         //Artemis code:
         Configuration configuration = EmbeddedConfig.createServerConfiguration();
 
-        //the following three lines have no effect
-        CoreQueueConfiguration coreQueueConfiguration = new CoreQueueConfiguration();
-        coreQueueConfiguration.setName("Queue123").setDurable(true);
-        configuration.addQueueConfiguration(coreQueueConfiguration);
+//        //the following three lines have no effect
+//        CoreQueueConfiguration coreQueueConfiguration = new CoreQueueConfiguration();
+//        coreQueueConfiguration.setName(QUEUE_NAME).setDurable(true);
+//        configuration.addQueueConfiguration(coreQueueConfiguration);
+////
+
 
 
         server = new EmbeddedActiveMQ();
+
+
         server.setConfiguration(configuration);
         server.start();
+
+        server.getActiveMQServer().getAddressSettingsRepository().addMatch("#", new AddressSettings()
+                .setAutoCreateQueues(true)
+                .setAutoCreateAddresses(true)
+                .setAutoDeleteQueues(false)
+                .setAutoDeleteAddresses(false));
+
 
 //
 //        TransportConfiguration transportConfiguration = new TransportConfiguration(InVMConnectorFactory.class.getName());

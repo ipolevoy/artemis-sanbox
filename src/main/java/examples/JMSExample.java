@@ -7,6 +7,7 @@ import org.apache.activemq.artemis.api.jms.ActiveMQJMSClient;
 import org.apache.activemq.artemis.api.jms.JMSFactoryType;
 import org.apache.activemq.artemis.core.remoting.impl.invm.InVMConnectorFactory;
 import org.apache.activemq.artemis.core.server.embedded.EmbeddedActiveMQ;
+import org.apache.activemq.artemis.jms.client.ActiveMQConnectionFactory;
 
 import javax.jms.*;
 import javax.naming.InitialContext;
@@ -23,22 +24,23 @@ public class JMSExample {
         server.setConfiguration(createServerConfiguration());
         server.start();
 
-        TransportConfiguration transportConfiguration = new TransportConfiguration(InVMConnectorFactory.class.getName());
-        ConnectionFactory connectionFactory = ActiveMQJMSClient.createConnectionFactoryWithoutHA(JMSFactoryType.CF, transportConfiguration);
+//        TransportConfiguration transportConfiguration = new TransportConfiguration(InVMConnectorFactory.class.getName());
+//        ConnectionFactory connectionFactory = ActiveMQJMSClient.createConnectionFactoryWithoutHA(JMSFactoryType.CF, transportConfiguration);
+        ConnectionFactory connectionFactory = new ActiveMQConnectionFactory("vm://0");
 
-        Hashtable<String, String> jndi = new Hashtable<>();
-        jndi.put("java.naming.factory.initial", "org.apache.activemq.artemis.jndi.ActiveMQInitialContextFactory");
-        jndi.put("connectionFactory.ConnectionFactory", "vm://0");
-        jndi.put("queue.queue/exampleQueue", "exampleQueue");
-
-        try (Connection connection = connectionFactory.createConnection()) {
+//        Hashtable<String, String> jndi = new Hashtable<>();
+//        jndi.put("java.naming.factory.initial", "org.apache.activemq.artemis.jndi.ActiveMQInitialContextFactory");
+//        jndi.put("connectionFactory.ConnectionFactory", "vm://0");
+//        jndi.put("queue.queue/exampleQueue", "exampleQueue");
 
 
-            Session jmsSession = connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
+
+        try (Connection connection = connectionFactory.createConnection();
+             Session jmsSession = connection.createSession(false, Session.AUTO_ACKNOWLEDGE)) {
+
             Queue jmsQueue = jmsSession.createQueue("exampleQueue");
 
             MessageProducer producer = jmsSession.createProducer(jmsQueue);
-
 
             //QUEUE CONTROLS ARE AVAILABLE ONLY AFTER CREATION OF A PRODUCER!
             System.out.println("Queue Controls: " + server.getActiveMQServer().getManagementService().getResources(QueueControl.class).length);
@@ -80,7 +82,6 @@ public class JMSExample {
             message.acknowledge();
             System.out.println("Received message: " + ((TextMessage) messageReceived).getText());
 
-
             messageConsumer.close();
 
             qc1 = (QueueControl) server.getActiveMQServer().getManagementService().getResources(QueueControl.class)[0];
@@ -106,5 +107,7 @@ public class JMSExample {
 
         }
         System.out.println("Browser found: " + count + " messages");
+
+        queueBrowser.close();
     }
 }
