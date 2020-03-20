@@ -100,7 +100,7 @@ public class JMSExampleJNDI_GUI extends JFrame {
 
         Hashtable<String, String> jndi = new Hashtable<>();
         jndi.put("java.naming.factory.initial", "org.apache.activemq.artemis.jndi.ActiveMQInitialContextFactory");
-        jndi.put("connectionFactory.ConnectionFactory", "vm://0");
+//        jndi.put("connectionFactory.ConnectionFactory", "vm://0");
         //# queue.[jndiName] = [physicalName]
         jndi.put("queue.queue/" + QUEUE_NAME, QUEUE_NAME);
 
