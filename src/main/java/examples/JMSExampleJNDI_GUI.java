@@ -1,5 +1,6 @@
 package examples;
 
+import org.apache.activemq.artemis.api.core.RoutingType;
 import org.apache.activemq.artemis.api.core.management.QueueControl;
 import org.apache.activemq.artemis.core.config.Configuration;
 import org.apache.activemq.artemis.core.config.CoreQueueConfiguration;
@@ -79,7 +80,7 @@ public class JMSExampleJNDI_GUI extends JFrame {
 
 //        //the following three lines have no effect
         CoreQueueConfiguration coreQueueConfiguration = new CoreQueueConfiguration();
-        coreQueueConfiguration.setName(QUEUE_NAME).setDurable(true);
+        coreQueueConfiguration.setAddress(QUEUE_NAME).setName(QUEUE_NAME).setDurable(true).setRoutingType(RoutingType.ANYCAST);
         configuration.addQueueConfiguration(coreQueueConfiguration);
 
         server = new EmbeddedActiveMQ();
@@ -89,8 +90,8 @@ public class JMSExampleJNDI_GUI extends JFrame {
         server.start();
 
         server.getActiveMQServer().getAddressSettingsRepository().addMatch("#", new AddressSettings()
-                .setAutoCreateQueues(true)
-                .setAutoCreateAddresses(true)
+                .setAutoCreateQueues(false)
+                .setAutoCreateAddresses(false)
                 .setAutoDeleteQueues(false)
                 .setAutoDeleteAddresses(false));
 
@@ -104,7 +105,7 @@ public class JMSExampleJNDI_GUI extends JFrame {
         jndi.put("queue.queue/" + QUEUE_NAME, QUEUE_NAME);
 
         InitialContext initialContext = new InitialContext(jndi);
-        jmsQueue = (Queue) initialContext.lookup("queue.queue/" + QUEUE_NAME);
+        jmsQueue = (Queue) initialContext.lookup("queue/" + QUEUE_NAME);
     }
 
     private void addActionListeners(JButton sendB, JButton receiveB, JTextField messageField, JButton queueControlCountB, JButton registerListenerB, JButton browseB) {
