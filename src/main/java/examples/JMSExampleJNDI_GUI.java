@@ -1,9 +1,9 @@
 package examples;
 
+import org.apache.activemq.artemis.api.core.QueueConfiguration;
 import org.apache.activemq.artemis.api.core.RoutingType;
 import org.apache.activemq.artemis.api.core.management.QueueControl;
 import org.apache.activemq.artemis.core.config.Configuration;
-import org.apache.activemq.artemis.core.config.CoreQueueConfiguration;
 import org.apache.activemq.artemis.core.server.embedded.EmbeddedActiveMQ;
 import org.apache.activemq.artemis.core.settings.impl.AddressSettings;
 import org.apache.activemq.artemis.jms.client.ActiveMQConnectionFactory;
@@ -78,9 +78,12 @@ public class JMSExampleJNDI_GUI extends JFrame {
         //Artemis code:
         Configuration configuration = EmbeddedConfig.createServerConfiguration();
 
-//        //the following three lines have no effect
-        CoreQueueConfiguration coreQueueConfiguration = new CoreQueueConfiguration();
-        coreQueueConfiguration.setAddress(QUEUE_NAME).setName(QUEUE_NAME).setDurable(true).setRoutingType(RoutingType.ANYCAST);
+//        //the following three lines create a queue
+        QueueConfiguration coreQueueConfiguration = new QueueConfiguration(QUEUE_NAME);
+        coreQueueConfiguration.setAddress(QUEUE_NAME)
+                .setName(QUEUE_NAME)
+                .setDurable(true)
+                .setRoutingType(RoutingType.ANYCAST);
         configuration.addQueueConfiguration(coreQueueConfiguration);
 
         server = new EmbeddedActiveMQ();
