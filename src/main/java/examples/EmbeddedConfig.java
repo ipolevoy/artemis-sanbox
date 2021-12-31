@@ -7,10 +7,10 @@ import org.apache.activemq.artemis.core.server.JournalType;
 import org.apache.activemq.artemis.core.server.embedded.EmbeddedActiveMQ;
 
 
-class EmbeddedConfig {
+public class EmbeddedConfig {
     private static final String LOCATION = "./target/artemis";
 
-    static Configuration createServerConfiguration() throws Exception {
+    public static Configuration createServerConfiguration() throws Exception {
 
        Configuration configuration = new ConfigurationImpl()
                 .setPersistenceEnabled(true)

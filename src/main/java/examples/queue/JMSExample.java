@@ -1,19 +1,13 @@
-package examples;
+package examples.queue;
 
 
-import org.apache.activemq.artemis.api.core.TransportConfiguration;
 import org.apache.activemq.artemis.api.core.management.QueueControl;
-import org.apache.activemq.artemis.api.jms.ActiveMQJMSClient;
-import org.apache.activemq.artemis.api.jms.JMSFactoryType;
-import org.apache.activemq.artemis.core.remoting.impl.invm.InVMConnectorFactory;
 import org.apache.activemq.artemis.core.server.embedded.EmbeddedActiveMQ;
 import org.apache.activemq.artemis.jms.client.ActiveMQConnectionFactory;
 
 import javax.jms.*;
-import javax.naming.InitialContext;
 import java.util.Date;
 import java.util.Enumeration;
-import java.util.Hashtable;
 
 import static examples.EmbeddedConfig.createServerConfiguration;
 

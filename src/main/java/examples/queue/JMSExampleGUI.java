@@ -1,7 +1,5 @@
-package examples;
+package examples.queue;
 
-import org.apache.activemq.artemis.api.core.QueueConfiguration;
-import org.apache.activemq.artemis.api.core.RoutingType;
 import org.apache.activemq.artemis.api.core.management.QueueControl;
 import org.apache.activemq.artemis.core.config.Configuration;
 import org.apache.activemq.artemis.core.server.embedded.EmbeddedActiveMQ;
@@ -11,16 +9,16 @@ import org.javalite.common.Util;
 
 import javax.jms.Queue;
 import javax.jms.*;
-import javax.naming.InitialContext;
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.util.ArrayList;
 import java.util.Enumeration;
-import java.util.Hashtable;
 
-public class JMSExampleJNDI_GUI extends JFrame {
+import static examples.EmbeddedConfig.createServerConfiguration;
+
+public class JMSExampleGUI extends JFrame {
 
 
     static String QUEUE_NAME = "QUEUE_123";
@@ -32,7 +30,7 @@ public class JMSExampleJNDI_GUI extends JFrame {
     private java.util.List<MessageConsumer> messageConsumers = new ArrayList<>();
     private Connection consumerConnection;
 
-    private JMSExampleJNDI_GUI(String title) throws Exception {
+    private JMSExampleGUI(String title) throws Exception {
         super(title);
 
         JPanel panel = new JPanel(new FlowLayout());
@@ -66,9 +64,9 @@ public class JMSExampleJNDI_GUI extends JFrame {
             @Override
             public void windowClosing(WindowEvent e) {
                 try {
-                    JMSExampleJNDI_GUI.this.listenerSessions.forEach(Util::closeQuietly);
-                    JMSExampleJNDI_GUI.this.messageConsumers.forEach(Util::closeQuietly);
-                    Util.closeQuietly(JMSExampleJNDI_GUI.this.consumerConnection);
+                    JMSExampleGUI.this.listenerSessions.forEach(Util::closeQuietly);
+                    JMSExampleGUI.this.messageConsumers.forEach(Util::closeQuietly);
+                    Util.closeQuietly(JMSExampleGUI.this.consumerConnection);
                     server.stop();
                 } catch (Exception ignore) {
                 }
@@ -76,15 +74,15 @@ public class JMSExampleJNDI_GUI extends JFrame {
         });
 
         //Artemis code:
-        Configuration configuration = EmbeddedConfig.createServerConfiguration();
+        Configuration configuration = createServerConfiguration();
 
-//        //the following three lines create a queue
-        QueueConfiguration coreQueueConfiguration = new QueueConfiguration(QUEUE_NAME);
-        coreQueueConfiguration.setAddress(QUEUE_NAME)
-                .setName(QUEUE_NAME)
-                .setDurable(true)
-                .setRoutingType(RoutingType.ANYCAST);
-        configuration.addQueueConfiguration(coreQueueConfiguration);
+//        //the following three lines have no effect
+//        CoreQueueConfiguration coreQueueConfiguration = new CoreQueueConfiguration();
+//        coreQueueConfiguration.setName(QUEUE_NAME).setDurable(true);
+//        configuration.addQueueConfiguration(coreQueueConfiguration);
+////
+
+
 
         server = new EmbeddedActiveMQ();
 
@@ -93,22 +91,34 @@ public class JMSExampleJNDI_GUI extends JFrame {
         server.start();
 
         server.getActiveMQServer().getAddressSettingsRepository().addMatch("#", new AddressSettings()
-                .setAutoCreateQueues(false)
-                .setAutoCreateAddresses(false)
+                .setAutoCreateQueues(true)
+                .setAutoCreateAddresses(true)
                 .setAutoDeleteQueues(false)
                 .setAutoDeleteAddresses(false));
+
+
+//
+//        TransportConfiguration transportConfiguration = new TransportConfiguration(InVMConnectorFactory.class.getName());
+//        connectionFactory = ActiveMQJMSClient.createConnectionFactoryWithoutHA(JMSFactoryType.CF, transportConfiguration);
 
         connectionFactory = new ActiveMQConnectionFactory("vm://0");
 
 
-        Hashtable<String, String> jndi = new Hashtable<>();
-        jndi.put("java.naming.factory.initial", "org.apache.activemq.artemis.jndi.ActiveMQInitialContextFactory");
-//        jndi.put("connectionFactory.ConnectionFactory", "vm://0");
-        //# queue.[jndiName] = [physicalName]
-        jndi.put("queue.queue/" + QUEUE_NAME, QUEUE_NAME);
+        try (Connection connection = connectionFactory.createConnection()) {
+            Session jmsSession = connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
+            jmsQueue = jmsSession.createQueue(QUEUE_NAME);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
 
-        InitialContext initialContext = new InitialContext(jndi);
-        jmsQueue = (Queue) initialContext.lookup("queue/" + QUEUE_NAME);
+//        Hashtable<String, String> jndi = new Hashtable<>();
+//        jndi.put("java.naming.factory.initial", "org.apache.activemq.artemis.jndi.ActiveMQInitialContextFactory");
+//        jndi.put("connectionFactory.ConnectionFactory", "vm://0");
+//        //# queue.[jndiName] = [physicalName]
+////        jndi.put("queue.queue/Queue123", "Queue123");
+//
+//        InitialContext initialContext = new InitialContext(jndi);
+//        jmsQueue = (Queue) initialContext.lookup(QUEUE_NAME);
     }
 
     private void addActionListeners(JButton sendB, JButton receiveB, JTextField messageField, JButton queueControlCountB, JButton registerListenerB, JButton browseB) {
@@ -215,7 +225,7 @@ public class JMSExampleJNDI_GUI extends JFrame {
 
 
     public static void main(String[] args) throws Exception {
-        JMSExampleJNDI_GUI frame = new JMSExampleJNDI_GUI("Artemis Sandbox");
+        JMSExampleGUI frame = new JMSExampleGUI("Artemis Sandbox");
         frame.setVisible(true);
     }
 }
